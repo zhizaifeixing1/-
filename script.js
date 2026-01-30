@@ -3,8 +3,18 @@ let currentSection = 'home';
 let currentSystem = null;
 let currentPath = [];
 let systemData = [];
-let currentUser = null;
-let token = null;
+
+// 设备标识，用于权限控制
+let deviceId = localStorage.getItem('deviceId');
+if (!deviceId) {
+    deviceId = generateDeviceId();
+    localStorage.setItem('deviceId', deviceId);
+}
+
+// 生成设备ID
+function generateDeviceId() {
+    return 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+}
 
 // 分享功能相关函数
 
@@ -36,60 +46,6 @@ function showStatusMessage(message, type = 'info') {
     }
 }
 
-// 导出系统数据为JSON文件
-function exportSystemDataToJSON() {
-    if (systemData.length === 0) {
-        showStatusMessage('没有系统数据可导出', 'error');
-        return;
-    }
-    
-    try {
-        const jsonData = JSON.stringify(systemData, null, 2);
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `aircraft-systems-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showStatusMessage('系统数据已导出为JSON文件', 'success');
-    } catch (err) {
-        console.error('导出JSON文件失败:', err);
-        showStatusMessage('导出JSON文件失败', 'error');
-    }
-}
-
-// 生成包含系统数据的分享链接
-function generateShareLink() {
-    if (systemData.length === 0) {
-        showStatusMessage('没有系统数据可分享', 'error');
-        return;
-    }
-    
-    try {
-        const jsonData = JSON.stringify(systemData);
-        const encodedData = btoa(unescape(encodeURIComponent(jsonData)));
-        const shareUrl = `${window.location.origin}${window.location.pathname}?data=${encodedData}`;
-        
-        // 复制分享链接到剪贴板
-        navigator.clipboard.writeText(shareUrl)
-            .then(() => {
-                showStatusMessage('分享链接已复制到剪贴板！', 'success');
-            })
-            .catch(err => {
-                console.error('复制分享链接失败:', err);
-                showStatusMessage('分享链接生成成功，请手动复制', 'info');
-                // 可以在这里添加一个弹窗显示分享链接
-                alert('分享链接：\n' + shareUrl);
-            });
-    } catch (err) {
-        console.error('生成分享链接失败:', err);
-        showStatusMessage('生成分享链接失败', 'error');
-    }
-}
-
 // 从URL中解析系统数据
 function parseSystemDataFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -110,161 +66,6 @@ function parseSystemDataFromUrl() {
             showStatusMessage('解析分享链接数据失败', 'error');
         }
     }
-}
-
-// 用户认证相关函数
-
-// 显示登录表单
-function showLoginForm() {
-    document.getElementById('login-form').style.display = 'block';
-}
-
-// 关闭登录表单
-function closeLoginForm() {
-    document.getElementById('login-form').style.display = 'none';
-}
-
-// 显示注册表单
-function showRegisterForm() {
-    document.getElementById('register-form').style.display = 'block';
-}
-
-// 关闭注册表单
-function closeRegisterForm() {
-    document.getElementById('register-form').style.display = 'none';
-}
-
-// 处理登录
-async function handleLogin(event) {
-    event.preventDefault();
-    
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-    
-    try {
-        const response = await fetch('http://localhost:5000/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            token = data.token;
-            currentUser = data.user;
-            updateAuthUI();
-            closeLoginForm();
-            showStatusMessage('登录成功！', 'success');
-        } else {
-            showStatusMessage(data.message, 'error');
-        }
-    } catch (error) {
-        console.error('登录失败:', error);
-        showStatusMessage('登录失败，请稍后重试', 'error');
-    }
-}
-
-// 处理注册
-async function handleRegister(event) {
-    event.preventDefault();
-    
-    const username = document.getElementById('register-username').value;
-    const email = document.getElementById('register-email').value;
-    const password = document.getElementById('register-password').value;
-    
-    try {
-        const response = await fetch('http://localhost:5000/api/auth/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username, email, password })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            token = data.token;
-            currentUser = data.user;
-            updateAuthUI();
-            closeRegisterForm();
-            showStatusMessage('注册成功！', 'success');
-        } else {
-            showStatusMessage(data.message, 'error');
-        }
-    } catch (error) {
-        console.error('注册失败:', error);
-        showStatusMessage('注册失败，请稍后重试', 'error');
-    }
-}
-
-// 退出登录
-function logout() {
-    token = null;
-    currentUser = null;
-    updateAuthUI();
-    showStatusMessage('退出登录成功', 'info');
-}
-
-// 更新认证相关UI
-function updateAuthUI() {
-    const authButtons = document.getElementById('auth-buttons');
-    const userInfo = document.getElementById('user-info');
-    const usernameDisplay = document.getElementById('username-display');
-    const developerUploadSection = document.getElementById('developer-upload-section');
-    const userUploadSection = document.getElementById('user-upload-section');
-    
-    if (currentUser) {
-        authButtons.style.display = 'none';
-        userInfo.style.display = 'flex';
-        userInfo.style.alignItems = 'center';
-        usernameDisplay.textContent = `${currentUser.username} (${currentUser.role})`;
-        
-        // 显示/隐藏开发者上传区域
-        if (currentUser.role === 'developer') {
-            developerUploadSection.style.display = 'block';
-        } else {
-            developerUploadSection.style.display = 'none';
-        }
-        
-        // 显示用户个人上传区域
-        userUploadSection.style.display = 'block';
-    } else {
-        authButtons.style.display = 'flex';
-        userInfo.style.display = 'none';
-        developerUploadSection.style.display = 'none';
-        userUploadSection.style.display = 'none';
-    }
-}
-
-// 检查用户登录状态
-function checkAuthStatus() {
-    // 从本地存储获取token和用户信息
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-        token = storedToken;
-        currentUser = JSON.parse(storedUser);
-        updateAuthUI();
-    }
-}
-
-// 保存用户认证信息到本地存储
-function saveAuthInfo() {
-    if (token && currentUser) {
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(currentUser));
-    }
-}
-
-// 从本地存储删除用户认证信息
-function removeAuthInfo() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
 }
 
 // 示例数据 - 飞机系统框架
@@ -444,9 +245,6 @@ function initApp() {
     // 解析URL中的系统数据（如果有）
     parseSystemDataFromUrl();
     
-    // 检查用户登录状态
-    checkAuthStatus();
-    
     // 绑定事件监听器
     document.getElementById('back-btn').addEventListener('click', goBack);
     document.getElementById('home-btn').addEventListener('click', goHome);
@@ -454,170 +252,24 @@ function initApp() {
     document.getElementById('mindmap-upload').addEventListener('change', handleFileUpload);
     
     // 绑定分享功能按钮事件
-    const shareBtns = document.querySelectorAll('.share-btn');
-    shareBtns.forEach(btn => {
-        if (btn.id === 'copy-link-btn') {
-            btn.addEventListener('click', copyLinkToClipboard);
-        } else if (btn.id === 'export-json-btn') {
-            btn.addEventListener('click', exportSystemDataToJSON);
-        } else if (btn.id === 'generate-share-btn') {
-            btn.addEventListener('click', generateShareLink);
-        }
-    });
-    
-    // 绑定开发者上传按钮
-    const developerParseBtn = document.getElementById('developer-parse-btn');
-    if (developerParseBtn) {
-        developerParseBtn.addEventListener('click', handleDeveloperUpload);
-    }
-    
-    // 绑定用户上传按钮
-    const userParseBtn = document.getElementById('user-parse-btn');
-    if (userParseBtn) {
-        userParseBtn.addEventListener('click', handleUserUpload);
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    if (copyLinkBtn) {
+        copyLinkBtn.addEventListener('click', copyLinkToClipboard);
     }
     
     // 渲染系统列表
     renderSystemList();
     
-    // 定期同步系统数据
-    setInterval(syncSystemData, 60000); // 每分钟同步一次
-}
-
-// 处理开发者上传
-async function handleDeveloperUpload() {
-    if (!currentUser || currentUser.role !== 'developer') {
-        showStatusMessage('您没有权限执行此操作', 'error');
-        return;
-    }
-    
-    const fileInput = document.getElementById('developer-mindmap-upload');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showStatusMessage('请选择要上传的文件', 'error');
-        return;
-    }
-    
-    try {
-        // 解析文件
-        const parsedData = await new Promise((resolve, reject) => {
-            if (file.name.endsWith('.md')) {
-                parseMDFile(file, resolve, reject);
-            } else if (file.name.endsWith('.xmind')) {
-                parseXMindFile(file, resolve, reject);
-            } else {
-                reject(new Error('不支持的文件格式'));
-            }
-        });
-        
-        // 转换为系统数据
-        const mindmapData = parsedData;
-        const convertedData = convertMindmapToSystemData(mindmapData);
-        
-        // 上传到服务器
-        const formData = new FormData();
-        formData.append('mindmap', file);
-        formData.append('title', file.name);
-        formData.append('systemData', JSON.stringify(convertedData));
-        
-        const response = await fetch('http://localhost:5000/api/developer/upload', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            systemData = convertedData;
-            renderSystemList();
-            showStatusMessage('思维导图上传成功并同步到所有用户端', 'success');
-        } else {
-            showStatusMessage(data.message, 'error');
-        }
-    } catch (error) {
-        console.error('开发者上传失败:', error);
-        showStatusMessage('上传失败，请稍后重试', 'error');
-    }
-}
-
-// 处理用户个人上传
-async function handleUserUpload() {
-    if (!currentUser) {
-        showStatusMessage('请先登录', 'error');
-        return;
-    }
-    
-    const fileInput = document.getElementById('user-mindmap-upload');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showStatusMessage('请选择要上传的文件', 'error');
-        return;
-    }
-    
-    try {
-        // 解析文件
-        const parsedData = await new Promise((resolve, reject) => {
-            if (file.name.endsWith('.md')) {
-                parseMDFile(file, resolve, reject);
-            } else if (file.name.endsWith('.xmind')) {
-                parseXMindFile(file, resolve, reject);
-            } else {
-                reject(new Error('不支持的文件格式'));
-            }
-        });
-        
-        // 转换为系统数据
-        const mindmapData = parsedData;
-        const convertedData = convertMindmapToSystemData(mindmapData);
-        
-        // 上传到服务器
-        const formData = new FormData();
-        formData.append('mindmap', file);
-        formData.append('title', file.name);
-        formData.append('systemData', JSON.stringify(convertedData));
-        
-        const response = await fetch('http://localhost:5000/api/user/upload', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            systemData = convertedData;
-            renderSystemList();
-            showStatusMessage('思维导图上传成功（仅个人可见）', 'success');
-        } else {
-            showStatusMessage(data.message, 'error');
-        }
-    } catch (error) {
-        console.error('用户上传失败:', error);
-        showStatusMessage('上传失败，请稍后重试', 'error');
-    }
+    // 加载本地存储的思维导图数据
+    loadLocalMindmaps();
 }
 
 // 同步系统数据
-async function syncSystemData() {
-    try {
-        const response = await fetch('http://localhost:5000/api/public/system-data');
-        const data = await response.json();
-        
-        if (response.ok && data.systemData) {
-            systemData = data.systemData;
-            renderSystemList();
-            console.log('系统数据同步成功');
-        }
-    } catch (error) {
-        console.error('系统数据同步失败:', error);
-    }
+function syncSystemData() {
+    // 本地存储已经在保存时自动同步，这里可以留空或添加额外的同步逻辑
+    console.log('系统数据已同步到本地存储');
+    // 重新加载本地思维导图数据以确保数据最新
+    loadLocalMindmaps();
 }
 
 // 渲染系统列表
@@ -799,48 +451,86 @@ function parseMindmap() {
     const file = fileInput.files[0];
     
     if (!file) {
-        document.getElementById('upload-status').textContent = '请先选择文件';
-        document.getElementById('upload-status').className = 'upload-status error';
+        showStatusMessage('请选择要解析的思维导图文件', 'error');
         return;
     }
     
-    // 检查文件类型
-    const fileName = file.name.toLowerCase();
-    if (fileName.endsWith('.xmind')) {
-        // 解析.xmind格式文件
-        parseXMindFile(file);
-    } else if (fileName.endsWith('.md')) {
-        // 解析.md格式文件
+    showStatusMessage('正在解析思维导图...', 'info');
+    
+    if (file.name.endsWith('.md')) {
         parseMDFile(file);
+    } else if (file.name.endsWith('.xmind') || file.name.endsWith('.xmindz')) {
+        parseXMindFile(file);
     } else {
-        // 解析JSON格式文件
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                // 解析JSON格式的思维导图
-                const mindmapData = JSON.parse(e.target.result);
-                
-                // 转换思维导图数据为系统数据格式
-                systemData = convertMindmapToSystemData(mindmapData);
-                
-                // 重新渲染系统列表
+        showStatusMessage('不支持的文件格式，请上传 .md 或 .xmind 文件', 'error');
+    }
+}
+
+// 加载本地存储的思维导图数据
+function loadLocalMindmaps() {
+    try {
+        // 加载本地存储的思维导图数据
+        const localMindmaps = localStorage.getItem('localMindmaps');
+        if (localMindmaps) {
+            const parsedMindmaps = JSON.parse(localMindmaps);
+            
+            // 过滤出当前设备上传的思维导图
+            const currentDeviceMindmaps = parsedMindmaps.filter(mindmap => mindmap.deviceId === deviceId);
+            
+            // 过滤出公共思维导图（所有设备可见）
+            const publicMindmaps = parsedMindmaps.filter(mindmap => mindmap.isPublic);
+            
+            // 合并数据
+            const allVisibleMindmaps = [...currentDeviceMindmaps, ...publicMindmaps];
+            
+            // 合并系统数据
+            if (allVisibleMindmaps.length > 0) {
+                systemData = [];
+                allVisibleMindmaps.forEach(mindmap => {
+                    if (Array.isArray(mindmap.data)) {
+                        systemData = [...systemData, ...mindmap.data];
+                    }
+                });
                 renderSystemList();
-                
-                document.getElementById('upload-status').textContent = '思维导图解析成功！';
-                document.getElementById('upload-status').className = 'upload-status success';
-            } catch (error) {
-                document.getElementById('upload-status').textContent = '思维导图解析失败，请确保文件格式正确';
-                document.getElementById('upload-status').className = 'upload-status error';
-                console.error('解析错误:', error);
+                showStatusMessage(`成功加载 ${allVisibleMindmaps.length} 个思维导图`, 'success');
             }
+        }
+    } catch (err) {
+        console.error('加载本地思维导图失败:', err);
+        showStatusMessage('加载本地思维导图失败', 'error');
+    }
+}
+
+// 保存思维导图数据到本地存储
+function saveMindmapToLocal(data, isPublic = true) {
+    try {
+        // 加载现有的思维导图数据
+        const localMindmaps = localStorage.getItem('localMindmaps');
+        let existingMindmaps = [];
+        
+        if (localMindmaps) {
+            existingMindmaps = JSON.parse(localMindmaps);
+        }
+        
+        // 创建新的思维导图记录
+        const newMindmap = {
+            id: 'mindmap_' + Date.now(),
+            deviceId: deviceId,
+            isPublic: isPublic,
+            data: data,
+            timestamp: Date.now()
         };
         
-        reader.onerror = function() {
-            document.getElementById('upload-status').textContent = '文件读取失败';
-            document.getElementById('upload-status').className = 'upload-status error';
-        };
+        // 添加到现有数据中
+        existingMindmaps.push(newMindmap);
         
-        reader.readAsText(file);
+        // 保存到本地存储
+        localStorage.setItem('localMindmaps', JSON.stringify(existingMindmaps));
+        
+        return true;
+    } catch (err) {
+        console.error('保存思维导图到本地失败:', err);
+        return false;
     }
 }
 
@@ -855,23 +545,30 @@ function parseMDFile(file) {
             const mindmapData = parseMarkdownContent(content);
             
             // 转换思维导图数据为系统数据格式
-            systemData = convertMindmapToSystemData(mindmapData);
+            const convertedData = convertMindmapToSystemData(mindmapData);
+            
+            // 保存到本地存储（当前设备上传的内容设为公共，其他设备可见）
+            const saved = saveMindmapToLocal(convertedData, true);
+            
+            // 更新系统数据
+            systemData = convertedData;
             
             // 重新渲染系统列表
             renderSystemList();
             
-            document.getElementById('upload-status').textContent = 'Markdown文件解析成功！';
-            document.getElementById('upload-status').className = 'upload-status success';
+            if (saved) {
+                showStatusMessage('思维导图解析成功并已保存！', 'success');
+            } else {
+                showStatusMessage('思维导图解析成功但保存失败', 'warning');
+            }
         } catch (error) {
-            document.getElementById('upload-status').textContent = 'Markdown文件解析失败，请确保文件格式正确';
-            document.getElementById('upload-status').className = 'upload-status error';
+            showStatusMessage('Markdown文件解析失败，请确保文件格式正确', 'error');
             console.error('解析错误:', error);
         }
     };
     
     reader.onerror = function() {
-        document.getElementById('upload-status').textContent = '文件读取失败';
-        document.getElementById('upload-status').className = 'upload-status error';
+        showStatusMessage('文件读取失败', 'error');
     };
     
     reader.readAsText(file);
@@ -974,45 +671,54 @@ function parseXMindFile(file) {
                 
                 if (contentFile) {
                     contentFile.async('string').then(function(content) {
-                        // 解析XML内容
-                        const parser = new DOMParser();
-                        const xmlDoc = parser.parseFromString(content, 'application/xml');
-                        
-                        // 提取思维导图数据
-                        const mindmapData = extractDataFromXMind(xmlDoc);
-                        
-                        // 转换思维导图数据为系统数据格式
-                        systemData = convertMindmapToSystemData(mindmapData);
-                        
-                        // 重新渲染系统列表
-                        renderSystemList();
-                        
-                        document.getElementById('upload-status').textContent = 'XMind文件解析成功！';
-                        document.getElementById('upload-status').className = 'upload-status success';
+                        try {
+                            // 解析XML内容
+                            const parser = new DOMParser();
+                            const xmlDoc = parser.parseFromString(content, 'application/xml');
+                            
+                            // 提取思维导图数据
+                            const mindmapData = extractDataFromXMind(xmlDoc);
+                            
+                            // 转换思维导图数据为系统数据格式
+                            const convertedData = convertMindmapToSystemData(mindmapData);
+                            
+                            // 保存到本地存储（当前设备上传的内容设为公共，其他设备可见）
+                            const saved = saveMindmapToLocal(convertedData, true);
+                            
+                            // 更新系统数据
+                            systemData = convertedData;
+                            
+                            // 重新渲染系统列表
+                            renderSystemList();
+                            
+                            if (saved) {
+                                showStatusMessage('思维导图解析成功并已保存！', 'success');
+                            } else {
+                                showStatusMessage('思维导图解析成功但保存失败', 'warning');
+                            }
+                        } catch (error) {
+                            showStatusMessage('思维导图解析失败，请确保文件格式正确', 'error');
+                            console.error('解析错误:', error);
+                        }
                     }).catch(function(error) {
-                        document.getElementById('upload-status').textContent = 'XMind文件内容读取失败';
-                        document.getElementById('upload-status').className = 'upload-status error';
+                        showStatusMessage('XMind文件内容读取失败', 'error');
                         console.error('读取错误:', error);
                     });
                 } else {
-                    document.getElementById('upload-status').textContent = 'XMind文件结构不正确，未找到content.xml';
-                    document.getElementById('upload-status').className = 'upload-status error';
+                    showStatusMessage('XMind文件结构不正确，未找到content.xml', 'error');
                 }
             }).catch(function(error) {
-                document.getElementById('upload-status').textContent = 'XMind文件解压失败，请确保文件格式正确';
-                document.getElementById('upload-status').className = 'upload-status error';
+                showStatusMessage('XMind文件解压失败，请确保文件格式正确', 'error');
                 console.error('解压错误:', error);
             });
         } catch (error) {
-            document.getElementById('upload-status').textContent = 'XMind文件解析失败，请确保文件格式正确';
-            document.getElementById('upload-status').className = 'upload-status error';
-            console.error('解析错误:', error);
+            showStatusMessage('文件读取失败', 'error');
+            console.error('读取错误:', error);
         }
     };
     
     reader.onerror = function() {
-        document.getElementById('upload-status').textContent = '文件读取失败';
-        document.getElementById('upload-status').className = 'upload-status error';
+        showStatusMessage('文件读取失败', 'error');
     };
     
     reader.readAsArrayBuffer(file);
