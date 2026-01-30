@@ -13,9 +13,60 @@
             <div class="header-buttons">
                 <button id="back-btn" class="btn back-btn" style="display: none;">返回上一级</button>
                 <button id="home-btn" class="btn home-btn" style="display: none;">返回主页</button>
+                <div id="auth-buttons">
+                    <button class="btn login-btn" onclick="showLoginForm()">登录</button>
+                    <button class="btn register-btn" onclick="showRegisterForm()">注册</button>
+                </div>
+                <div id="user-info" style="display: none;">
+                    <span id="username-display"></span>
+                    <button class="btn logout-btn" onclick="logout()">退出</button>
+                </div>
             </div>
             <h1 id="page-title" class="page-title">飞机系统框架学习</h1>
         </header>
+
+        <!-- 登录表单 -->
+        <div id="login-form" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeLoginForm()">&times;</span>
+                <h2>登录</h2>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="login-email">邮箱</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">密码</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn login-submit-btn">登录</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 注册表单 -->
+        <div id="register-form" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeRegisterForm()">&times;</span>
+                <h2>注册</h2>
+                <form onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="register-username">用户名</label>
+                        <input type="text" id="register-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">邮箱</label>
+                        <input type="email" id="register-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">密码</label>
+                        <input type="password" id="register-password" required>
+                    </div>
+
+                    <button type="submit" class="btn register-submit-btn">注册</button>
+                </form>
+            </div>
+        </div>
 
         <!-- 主内容区 -->
         <main class="main-content">
@@ -35,14 +86,32 @@
                 </div>
                 
                 <!-- 分享功能区域 -->
-                <div class="share-section">
+                <section class="share-section">
                     <h3>分享功能</h3>
                     <div class="share-buttons">
                         <button id="copy-link-btn" class="btn share-btn">复制应用链接</button>
                         <button id="export-json-btn" class="btn share-btn">导出系统数据</button>
                         <button id="generate-share-btn" class="btn share-btn">生成分享链接</button>
                     </div>
-                    <p class="share-hint">分享链接包含当前系统数据，可直接分享给其他用户</p>
+                    <p class="share-hint">通过分享功能，您可以将当前系统数据分享给其他用户，或导出备份数据。</p>
+                </section>
+
+                <!-- 开发者上传区域 -->
+                <section id="developer-upload-section" class="upload-section" style="display: none;">
+                    <h3>开发者上传</h3>
+                    <p class="upload-hint">上传思维导图并同步到所有用户端</p>
+                    <input type="file" id="developer-mindmap-upload" accept=".md,.xmind">
+                    <button id="developer-parse-btn" class="btn parse-btn">解析并上传</button>
+                    <div id="developer-upload-status" class="upload-status"></div>
+                </section>
+                
+                <!-- 用户个人上传区域 -->
+                <div id="user-upload-section" class="upload-section" style="display: none;">
+                    <h3>个人上传 (仅个人可见)</h3>
+                    <p class="upload-hint">上传思维导图仅个人可见</p>
+                    <input type="file" id="user-mindmap-upload" accept=".md,.xmind">
+                    <button id="user-parse-btn" class="btn parse-btn">上传</button>
+                    <div id="user-upload-status" class="upload-status"></div>
                 </div>
             </section>
 

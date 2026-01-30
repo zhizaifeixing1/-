@@ -3,6 +3,8 @@ let currentSection = 'home';
 let currentSystem = null;
 let currentPath = [];
 let systemData = [];
+let currentUser = null;
+let token = null;
 
 // 分享功能相关函数
 
@@ -108,6 +110,161 @@ function parseSystemDataFromUrl() {
             showStatusMessage('解析分享链接数据失败', 'error');
         }
     }
+}
+
+// 用户认证相关函数
+
+// 显示登录表单
+function showLoginForm() {
+    document.getElementById('login-form').style.display = 'block';
+}
+
+// 关闭登录表单
+function closeLoginForm() {
+    document.getElementById('login-form').style.display = 'none';
+}
+
+// 显示注册表单
+function showRegisterForm() {
+    document.getElementById('register-form').style.display = 'block';
+}
+
+// 关闭注册表单
+function closeRegisterForm() {
+    document.getElementById('register-form').style.display = 'none';
+}
+
+// 处理登录
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            token = data.token;
+            currentUser = data.user;
+            updateAuthUI();
+            closeLoginForm();
+            showStatusMessage('登录成功！', 'success');
+        } else {
+            showStatusMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('登录失败:', error);
+        showStatusMessage('登录失败，请稍后重试', 'error');
+    }
+}
+
+// 处理注册
+async function handleRegister(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('register-username').value;
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            token = data.token;
+            currentUser = data.user;
+            updateAuthUI();
+            closeRegisterForm();
+            showStatusMessage('注册成功！', 'success');
+        } else {
+            showStatusMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('注册失败:', error);
+        showStatusMessage('注册失败，请稍后重试', 'error');
+    }
+}
+
+// 退出登录
+function logout() {
+    token = null;
+    currentUser = null;
+    updateAuthUI();
+    showStatusMessage('退出登录成功', 'info');
+}
+
+// 更新认证相关UI
+function updateAuthUI() {
+    const authButtons = document.getElementById('auth-buttons');
+    const userInfo = document.getElementById('user-info');
+    const usernameDisplay = document.getElementById('username-display');
+    const developerUploadSection = document.getElementById('developer-upload-section');
+    const userUploadSection = document.getElementById('user-upload-section');
+    
+    if (currentUser) {
+        authButtons.style.display = 'none';
+        userInfo.style.display = 'flex';
+        userInfo.style.alignItems = 'center';
+        usernameDisplay.textContent = `${currentUser.username} (${currentUser.role})`;
+        
+        // 显示/隐藏开发者上传区域
+        if (currentUser.role === 'developer') {
+            developerUploadSection.style.display = 'block';
+        } else {
+            developerUploadSection.style.display = 'none';
+        }
+        
+        // 显示用户个人上传区域
+        userUploadSection.style.display = 'block';
+    } else {
+        authButtons.style.display = 'flex';
+        userInfo.style.display = 'none';
+        developerUploadSection.style.display = 'none';
+        userUploadSection.style.display = 'none';
+    }
+}
+
+// 检查用户登录状态
+function checkAuthStatus() {
+    // 从本地存储获取token和用户信息
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    
+    if (storedToken && storedUser) {
+        token = storedToken;
+        currentUser = JSON.parse(storedUser);
+        updateAuthUI();
+    }
+}
+
+// 保存用户认证信息到本地存储
+function saveAuthInfo() {
+    if (token && currentUser) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(currentUser));
+    }
+}
+
+// 从本地存储删除用户认证信息
+function removeAuthInfo() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 }
 
 // 示例数据 - 飞机系统框架
@@ -287,6 +444,9 @@ function initApp() {
     // 解析URL中的系统数据（如果有）
     parseSystemDataFromUrl();
     
+    // 检查用户登录状态
+    checkAuthStatus();
+    
     // 绑定事件监听器
     document.getElementById('back-btn').addEventListener('click', goBack);
     document.getElementById('home-btn').addEventListener('click', goHome);
@@ -305,8 +465,159 @@ function initApp() {
         }
     });
     
+    // 绑定开发者上传按钮
+    const developerParseBtn = document.getElementById('developer-parse-btn');
+    if (developerParseBtn) {
+        developerParseBtn.addEventListener('click', handleDeveloperUpload);
+    }
+    
+    // 绑定用户上传按钮
+    const userParseBtn = document.getElementById('user-parse-btn');
+    if (userParseBtn) {
+        userParseBtn.addEventListener('click', handleUserUpload);
+    }
+    
     // 渲染系统列表
     renderSystemList();
+    
+    // 定期同步系统数据
+    setInterval(syncSystemData, 60000); // 每分钟同步一次
+}
+
+// 处理开发者上传
+async function handleDeveloperUpload() {
+    if (!currentUser || currentUser.role !== 'developer') {
+        showStatusMessage('您没有权限执行此操作', 'error');
+        return;
+    }
+    
+    const fileInput = document.getElementById('developer-mindmap-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showStatusMessage('请选择要上传的文件', 'error');
+        return;
+    }
+    
+    try {
+        // 解析文件
+        const parsedData = await new Promise((resolve, reject) => {
+            if (file.name.endsWith('.md')) {
+                parseMDFile(file, resolve, reject);
+            } else if (file.name.endsWith('.xmind')) {
+                parseXMindFile(file, resolve, reject);
+            } else {
+                reject(new Error('不支持的文件格式'));
+            }
+        });
+        
+        // 转换为系统数据
+        const mindmapData = parsedData;
+        const convertedData = convertMindmapToSystemData(mindmapData);
+        
+        // 上传到服务器
+        const formData = new FormData();
+        formData.append('mindmap', file);
+        formData.append('title', file.name);
+        formData.append('systemData', JSON.stringify(convertedData));
+        
+        const response = await fetch('http://localhost:5000/api/developer/upload', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            systemData = convertedData;
+            renderSystemList();
+            showStatusMessage('思维导图上传成功并同步到所有用户端', 'success');
+        } else {
+            showStatusMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('开发者上传失败:', error);
+        showStatusMessage('上传失败，请稍后重试', 'error');
+    }
+}
+
+// 处理用户个人上传
+async function handleUserUpload() {
+    if (!currentUser) {
+        showStatusMessage('请先登录', 'error');
+        return;
+    }
+    
+    const fileInput = document.getElementById('user-mindmap-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showStatusMessage('请选择要上传的文件', 'error');
+        return;
+    }
+    
+    try {
+        // 解析文件
+        const parsedData = await new Promise((resolve, reject) => {
+            if (file.name.endsWith('.md')) {
+                parseMDFile(file, resolve, reject);
+            } else if (file.name.endsWith('.xmind')) {
+                parseXMindFile(file, resolve, reject);
+            } else {
+                reject(new Error('不支持的文件格式'));
+            }
+        });
+        
+        // 转换为系统数据
+        const mindmapData = parsedData;
+        const convertedData = convertMindmapToSystemData(mindmapData);
+        
+        // 上传到服务器
+        const formData = new FormData();
+        formData.append('mindmap', file);
+        formData.append('title', file.name);
+        formData.append('systemData', JSON.stringify(convertedData));
+        
+        const response = await fetch('http://localhost:5000/api/user/upload', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            systemData = convertedData;
+            renderSystemList();
+            showStatusMessage('思维导图上传成功（仅个人可见）', 'success');
+        } else {
+            showStatusMessage(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('用户上传失败:', error);
+        showStatusMessage('上传失败，请稍后重试', 'error');
+    }
+}
+
+// 同步系统数据
+async function syncSystemData() {
+    try {
+        const response = await fetch('http://localhost:5000/api/public/system-data');
+        const data = await response.json();
+        
+        if (response.ok && data.systemData) {
+            systemData = data.systemData;
+            renderSystemList();
+            console.log('系统数据同步成功');
+        }
+    } catch (error) {
+        console.error('系统数据同步失败:', error);
+    }
 }
 
 // 渲染系统列表
