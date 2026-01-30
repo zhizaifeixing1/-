@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞机系统框架学习应用</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="header-buttons">
+                <button id="back-btn" class="btn back-btn" style="display: none;">返回上一级</button>
+                <button id="home-btn" class="btn home-btn" style="display: none;">返回主页</button>
+            </div>
+            <h1 id="page-title" class="page-title">飞机系统框架学习</h1>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 主页 - 系统列表 -->
+            <section id="home-section" class="section active">
+                <h2>飞机系统列表</h2>
+                <div id="system-list" class="system-list">
+                    <!-- 系统列表将通过JavaScript动态生成 -->
+                </div>
+                
+                <!-- 思维导图上传区域 -->
+                <div class="upload-section">
+                    <h3>上传思维导图</h3>
+                    <input type="file" id="mindmap-upload" accept=".json,.mmap,.xmind,.md,application/x-xmind,text/markdown">
+                    <button id="parse-btn" class="btn parse-btn">解析思维导图</button>
+                    <p id="upload-status" class="upload-status"></p>
+                </div>
+                
+                <!-- 分享功能区域 -->
+                <div class="share-section">
+                    <h3>分享功能</h3>
+                    <div class="share-buttons">
+                        <button id="copy-link-btn" class="btn share-btn">复制应用链接</button>
+                        <button id="export-json-btn" class="btn share-btn">导出系统数据</button>
+                        <button id="generate-share-btn" class="btn share-btn">生成分享链接</button>
+                    </div>
+                    <p class="share-hint">分享链接包含当前系统数据，可直接分享给其他用户</p>
+                </div>
+            </section>
+
+            <!-- 系统详情页 -->
+            <section id="system-section" class="section">
+                <h2 id="system-title"></h2>
+                <div id="subsystem-list" class="subsystem-list">
+                    <!-- 子系统列表将通过JavaScript动态生成 -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
